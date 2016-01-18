@@ -1,14 +1,21 @@
 package com.fangjue.suzhoubusdb;
 
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.*;
 import android.view.View;
 import android.widget.*;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity {
+
+    private SQLiteDatabase db;
+    private ListView busList;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,6 +34,10 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         }
+
+        busList = (ListView)findViewById(R.id.busList);
+
+        this.db = new BusDBOpenHelper(this.getApplicationContext(), "Suzhou").getWritableDatabase();
     }
 
     private void onKeyClicked(View key, boolean longClick) {
@@ -70,7 +81,27 @@ public class MainActivity extends AppCompatActivity {
 
             if (!preventDefault)
                 editText.append(text);
+            if (editText.getId() == R.id.busId && editText.getText().length() >= 3)
+                this.query(BusDBOpenHelper.KEY_BUS_ID, editText.getText().toString());
+            else if (editText.getId() == R.id.licenseId && editText.getText().length() >= 3)
+                this.query(BusDBOpenHelper.KEY_LICENSE_ID, editText.getText().toString());
+            else if (editText.getId() == R.id.lineId)
+                this.query(BusDBOpenHelper.KEY_LINE_ID, editText.getText().toString());
         }
+    }
+
+    private void query(String field, String value) {
+        Cursor cursor = this.db.query(BusDBOpenHelper.BUSES_TABLE_NAME, null,
+                field + (field.equals(BusDBOpenHelper.KEY_LINE_ID) ?
+                        " = ?" : " LIKE '%' || ? || '%'"),
+                new String[]{value}, null, null, field);
+        android.util.Log.i("info", field + (field.equals(BusDBOpenHelper.KEY_LINE_ID) ? " = ?" : " LIKE '%' + ? + '%'"));
+        ArrayList<String> buses = new ArrayList<>();
+        while (buses.size() < 20 && cursor.moveToNext())
+            buses.add(cursor.getString(0) + " " + cursor.getString(1) + " " + cursor.getString(2));
+        // TODO: Move the expression above to a dedicated function.
+        cursor.close();
+        busList.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, buses));
     }
 
     public void keyClicked(View key) {
@@ -101,6 +132,21 @@ public class MainActivity extends AppCompatActivity {
     private boolean onLineIdInput(EditText editText, CharSequence text,
                                   KeyType type, boolean longClick) {
         return false;
+    }
+
+    public void onUpdateClicked(View v) {
+        ContentValues values = new ContentValues();
+        String busId = ((EditText)findViewById(R.id.busId)).getText().toString();
+        String licenseId = ((EditText)findViewById(R.id.licenseId)).getText().toString();
+        if (busId.length() == 0 && licenseId.length() == 0)
+            return;
+        values.put(BusDBOpenHelper.KEY_BUS_ID, busId);
+        values.put(BusDBOpenHelper.KEY_LICENSE_ID, licenseId);
+        values.put(BusDBOpenHelper.KEY_LINE_ID,
+                ((EditText)findViewById(R.id.lineId)).getText().toString());
+        if (this.db.update(BusDBOpenHelper.BUSES_TABLE_NAME, values, "busId = ? OR licenseId = ?",
+                new String[]{busId, licenseId}) == 0)
+            this.db.insert(BusDBOpenHelper.BUSES_TABLE_NAME, null, values);
     }
 
     private enum KeyType {

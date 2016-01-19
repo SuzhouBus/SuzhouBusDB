@@ -56,12 +56,7 @@ public class MainActivity extends AppCompatActivity {
             Editable text = editText.getText();
 
             if (key.getId() == R.id.keyDel) {
-                if (longClick) {
-                    text.clear();
-                } else {
-                    if (text.length() > 0)
-                        text.delete(text.length() - 1, text.length());
-                }
+                this.onDeleteClicked(editText, text, longClick);
                 return;
             }
 
@@ -86,6 +81,27 @@ public class MainActivity extends AppCompatActivity {
                 this.query(BusDBOpenHelper.KEY_LICENSE_ID, text.toString());
             else if (editText.getId() == R.id.lineId)
                 this.query(BusDBOpenHelper.KEY_LINE_ID, text.toString());
+        }
+    }
+
+    private void onDeleteClicked(EditText editText, Editable text, boolean longClick) {
+        if (longClick) {
+            // Clear all fields if the current field is already empty
+            if (text.length() == 0) {
+                this.busId.getText().clear();
+                this.licenseId.getText().clear();
+                this.lineId.getText().clear();
+            } else
+                text.clear();
+        } else {
+            if (text.length() > 0)
+                text.delete(text.length() - 1, text.length());
+            if (text.length() == 0) {
+                if (editText == this.licenseId)
+                    this.busId.requestFocus();
+                else if (editText == this.lineId)
+                    this.licenseId.requestFocus();
+            }
         }
     }
 
@@ -130,19 +146,36 @@ public class MainActivity extends AppCompatActivity {
         // Suzhou buses have only numerical ids.
         if (type != KeyType.kDigit)
             return true;
+
+        // Suzhou Buses have ids like 1-2345 where "1" identifies a company and "2345" identifies
+        // buses within the company. We accept ids without the leading "1-" because company ids can
+        // be determined by lineId.
         String id = text.toString();
+
+        // Reject if busId is complete.
+        if (id.length() >= 6 || (!id.contains("-") && id.length() >= 4))
+            return true;
+        // The last digit has already been typed. Move focus to the next field.
+        if (id.length() == 5 || (!id.contains("-") && id.length() == 3))
+            this.licenseId.requestFocus();
+        // Long pressing a number types the company prefix.
         if (longClick && !id.contains("-")) {
             text.insert(0, keyText + "-");
             return true;
-        } else if (id.length() >= 6 || (!id.contains("-") && id.length() >= 4))
-            return true;
+        }
         return false;
     }
 
     private boolean onLicenseIdInput(Editable text, CharSequence keyText,
                                      KeyType type, boolean longClick) {
+        // Vehicle license numbers in China look like 苏E1A345. Buses in the same city will always
+        // have the same region identifier ("苏E" in Suzhou, for example) and only the remaining
+        // five alphanumeric characters are required to type.
         if (text.length() >= 5)
             return true;
+        // The last character has been typed. Move to the next field.
+        if (text.length() == 4)
+            lineId.requestFocus();
         return false;
     }
 
@@ -152,17 +185,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onUpdateClicked(View v) {
-        ContentValues values = new ContentValues();
         String busId = this.busId.getText().toString();
         String licenseId = this.licenseId.getText().toString();
         if (busId.length() == 0 && licenseId.length() == 0)
             return;
+
+        ContentValues values = new ContentValues();
         values.put(BusDBOpenHelper.KEY_BUS_ID, busId);
         values.put(BusDBOpenHelper.KEY_LICENSE_ID, licenseId);
         values.put(BusDBOpenHelper.KEY_LINE_ID, this.lineId.getText().toString());
         if (this.db.update(BusDBOpenHelper.BUSES_TABLE_NAME, values, "busId = ? OR licenseId = ?",
                 new String[]{busId, licenseId}) == 0)
             this.db.insert(BusDBOpenHelper.BUSES_TABLE_NAME, null, values);
+
+        this.busId.getText().clear();
+        this.licenseId.getText().clear();
+        this.lineId.getText().clear();
+        this.busId.requestFocus();
     }
 
     private enum KeyType {

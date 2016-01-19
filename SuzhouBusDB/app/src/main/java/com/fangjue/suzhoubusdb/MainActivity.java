@@ -112,7 +112,9 @@ public class MainActivity extends AppCompatActivity {
             } else
                 text.clear();
         } else {
-            if (text.length() > 0)
+            if (editText == this.busId && text.length() == 2 && text.toString().contains("-"))
+                text.clear();
+            else if (text.length() > 0)
                 text.delete(text.length() - 1, text.length());
             if (text.length() == 0) {
                 if (editText == this.licenseId)

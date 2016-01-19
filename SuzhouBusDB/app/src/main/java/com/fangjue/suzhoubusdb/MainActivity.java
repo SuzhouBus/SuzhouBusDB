@@ -223,13 +223,27 @@ public class MainActivity extends AppCompatActivity {
         String lineId = this.lineId.getText().toString();
         if (busId.length() == 0 && licenseId.length() == 0)
             return;
+        // Reject incomplete input.
+        // TODO: The company part of busId can be autocompleted if lineId is available.
+        if (busId.length() != 0 && busId.length() != 6)
+            return;
+        if (licenseId.length() != 0 && licenseId.length() != 5)
+            return;
 
         ContentValues values = new ContentValues();
         values.put(BusDBOpenHelper.KEY_BUS_ID, busId);
         values.put(BusDBOpenHelper.KEY_LICENSE_ID, licenseId);
         values.put(BusDBOpenHelper.KEY_LINE_ID, lineId);
-        if (this.db.update(BusDBOpenHelper.BUSES_TABLE_NAME, values, "busId = ? OR licenseId = ?",
-                new String[]{busId, licenseId}) == 0)
+        String where = "busId = ? OR licenseId = ?";
+        String[] args = {busId, licenseId};
+        if (busId.length() == 0) {
+            where = "licenseId = ?";
+            args = new String[]{licenseId};
+        } else if (licenseId.length() == 0) {
+            where = "busId = ?";
+            args = new String[]{busId};
+        }
+        if (this.db.update(BusDBOpenHelper.BUSES_TABLE_NAME, values, where, args) == 0)
             this.db.insert(BusDBOpenHelper.BUSES_TABLE_NAME, null, values);
         try {
             logFile.write(busId + "\t" + licenseId + "\t" + lineId + "\n");

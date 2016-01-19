@@ -186,10 +186,12 @@ public class MainActivity extends AppCompatActivity {
         String id = text.toString();
 
         // Reject if busId is complete.
-        if (id.length() >= 6 || (!id.contains("-") && id.length() >= 4))
+        if (id.length() >= 6 || (!id.contains("-") && id.length() >= 4 && !longClick))
             return true;
         // The last digit has already been typed. Move focus to the next field.
-        if (id.length() == 5 || (!id.contains("-") && id.length() == 3))
+        // TODO: Restore the expression after company id autocomplete is implemented.
+        if (id.length() == 5 || (id.length() == 4 && longClick)
+                /*|| (!id.contains("-") && id.length() == 3)*/)
             this.licenseId.requestFocus();
         // Long pressing a number types the company prefix.
         if (longClick && !id.contains("-")) {

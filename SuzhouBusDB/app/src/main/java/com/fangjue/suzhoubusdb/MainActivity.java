@@ -92,9 +92,10 @@ public class MainActivity extends AppCompatActivity {
 
             if (!preventDefault)
                 editText.append(keyText);
-            if (editText == busId && text.length() >= 3)
-                this.query(BusDBOpenHelper.KEY_BUS_ID, text.toString());
-            else if (editText.getId() == R.id.licenseId && text.length() >= 3)
+            boolean hasCompanyId = text.toString().contains("-");
+            if (editText == busId && (text.length() >= 3 || text.length() == 2 && !hasCompanyId)) {
+                this.query(BusDBOpenHelper.KEY_BUS_ID, (hasCompanyId ? "" : "-") + text.toString());
+            } else if (editText.getId() == R.id.licenseId && text.length() >= 3)
                 this.query(BusDBOpenHelper.KEY_LICENSE_ID, text.toString());
             else if (editText.getId() == R.id.lineId)
                 this.query(BusDBOpenHelper.KEY_LINE_ID, text.toString());
@@ -141,17 +142,32 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void query(String field, String value) {
-        Cursor cursor = this.db.query(BusDBOpenHelper.BUSES_TABLE_NAME, null,
-                field + (field.equals(BusDBOpenHelper.KEY_LINE_ID) ?
-                        " = ?" : " LIKE '%' || ? || '%'"),
-                new String[]{value}, null, null, field);
+        String where = null;
+        if (field.equals(BusDBOpenHelper.KEY_BUS_ID))
+            where = field + " LIKE '%' || ? || '%'";
+        else if (field.equals(BusDBOpenHelper.KEY_LICENSE_ID))
+            where = field + " LIKE ? || '%'";
+        else if (field.equals(BusDBOpenHelper.KEY_LINE_ID))
+            where = field + " = ?";
+        Cursor cursor = this.db.query(BusDBOpenHelper.BUSES_TABLE_NAME,
+                new String[]{BusDBOpenHelper.KEY_BUS_ID, BusDBOpenHelper.KEY_LICENSE_ID,
+                        BusDBOpenHelper.KEY_LINE_ID, BusDBOpenHelper.KEY_COMMENTS},
+                where, new String[]{value}, null, null, field);
         android.util.Log.i("info", field + (field.equals(BusDBOpenHelper.KEY_LINE_ID) ? " = ?" : " LIKE '%' + ? + '%'"));
         ArrayList<String> buses = new ArrayList<>();
-        while (buses.size() < 20 && cursor.moveToNext())
-            buses.add(cursor.getString(0) + " " + cursor.getString(1) + " " + cursor.getString(2));
-        // TODO: Move the expression above to a dedicated function.
+        while (buses.size() < 100 && cursor.moveToNext())
+            buses.add(formatListItem(cursor.getString(0), cursor.getString(1),
+                    cursor.getString(2), cursor.getString(3)));
         cursor.close();
         busList.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, buses));
+    }
+
+    private String formatListItem(String busId, String licenseId, String lineId, String comments) {
+        final int MAX_LENGTH = 16;
+        comments = comments.trim();
+        if (comments.length() > MAX_LENGTH)
+            comments = comments.substring(0, MAX_LENGTH - 3) + "...";
+        return busId + " " + licenseId + " " + lineId +  "   " + comments;
     }
 
     public void keyClicked(View key) {

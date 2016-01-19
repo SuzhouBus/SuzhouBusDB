@@ -275,6 +275,8 @@ public class MainActivity extends AppCompatActivity {
         }
         if (this.db.update(BusDBOpenHelper.kTableBuses, values, where, args) == 0)
             this.db.insert(BusDBOpenHelper.kTableBuses, null, values);
+        busList.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1,
+                Arrays.asList(new String[]{this.formatListItem(busId, licenseId, lineId, "*")})));
         try {
             logFile.write(busId + "\t" + licenseId + "\t" + lineId + "\n");
             this.logFile.flush();

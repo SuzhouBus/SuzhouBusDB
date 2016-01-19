@@ -16,13 +16,19 @@ public class MainActivity extends AppCompatActivity {
 
     private SQLiteDatabase db;
     private ListView busList;
+    private EditText busId;
+    private EditText licenseId;
+    private EditText lineId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // Disable soft keyboard for all fields in favor of fine tuned keyboard in our UI.
         for (int id:new int[]{R.id.busId, R.id.licenseId, R.id.lineId})
             ((EditText)findViewById(id)).setInputType(InputType.TYPE_NULL);
+
         for (int id:new int[]{R.id.key0, R.id.key1, R.id.key2, R.id.key3, R.id.key4,
                 R.id.key5, R.id.key6, R.id.key7, R.id.key8, R.id.key9,
                 R.id.keyDel}) {
@@ -36,6 +42,9 @@ public class MainActivity extends AppCompatActivity {
         }
 
         busList = (ListView)findViewById(R.id.busList);
+        busId = (EditText)findViewById(R.id.busId);
+        licenseId = (EditText)findViewById(R.id.licenseId);
+        lineId = (EditText)findViewById(R.id.lineId);
 
         this.db = new BusDBOpenHelper(this.getApplicationContext(), "Suzhou").getWritableDatabase();
     }
@@ -44,9 +53,9 @@ public class MainActivity extends AppCompatActivity {
         View focus = getCurrentFocus();
         if (focus instanceof EditText) {
             EditText editText = (EditText)focus;
+            Editable text = editText.getText();
 
             if (key.getId() == R.id.keyDel) {
-                Editable text = editText.getText();
                 if (longClick) {
                     text.clear();
                 } else {
@@ -57,37 +66,45 @@ public class MainActivity extends AppCompatActivity {
             }
 
             boolean preventDefault;
-            CharSequence text = ((Button) key).getText();
-            KeyType type = KeyType.kOther;
-            if (Arrays.asList(R.id.key0, R.id.key1, R.id.key2, R.id.key3, R.id.key4,
-                    R.id.key5, R.id.key6, R.id.key7, R.id.key8, R.id.key9).contains(key.getId()))
-                type = KeyType.kDigit;
-            else if (Arrays.asList(R.id.keyA, R.id.keyB, R.id.keyC, R.id.keyD, R.id.keyE,
-                    R.id.keyF, R.id.keyG, R.id.keyH, R.id.keyJ, R.id.keyK, R.id.keyL, R.id.keyM,
-                    R.id.keyN, R.id.keyP, R.id.keyQ, R.id.keyR, R.id.keyS, R.id.keyT, R.id.keyU,
-                    R.id.keyV, R.id.keyW, R.id.keyX, R.id.keyY, R.id.keyZ).contains(key.getId()))
-                type = KeyType.kAlphabet;
-            else if (Arrays.asList(R.id.keyMRU1, R.id.keyMRU2, R.id.keyMRU3, R.id.keyMRU4).
-                    contains(key.getId()))
-                type = KeyType.kShortcut;
-            if (editText.getId() == R.id.busId)
-                preventDefault = this.onBusIdInput(editText, text, type, longClick);
-            else if (editText.getId() == R.id.licenseId)
-                preventDefault = this.onLicenseIdInput(editText, text, type, longClick);
-            else if (editText.getId() == R.id.lineId)
-                preventDefault = this.onLineIdInput(editText, text, type, longClick);
+            CharSequence keyText = ((Button) key).getText();
+            KeyType type = this.getKeyType(key);
+
+            if (editText == busId)
+                preventDefault = this.onBusIdInput(text, keyText, type, longClick);
+            else if (editText == licenseId)
+                preventDefault = this.onLicenseIdInput(text, keyText, type, longClick);
+            else if (editText == lineId)
+                preventDefault = this.onLineIdInput(text, keyText, type, longClick);
             else
                 return;
 
             if (!preventDefault)
-                editText.append(text);
-            if (editText.getId() == R.id.busId && editText.getText().length() >= 3)
-                this.query(BusDBOpenHelper.KEY_BUS_ID, editText.getText().toString());
-            else if (editText.getId() == R.id.licenseId && editText.getText().length() >= 3)
-                this.query(BusDBOpenHelper.KEY_LICENSE_ID, editText.getText().toString());
+                editText.append(keyText);
+            if (editText == busId && text.length() >= 3)
+                this.query(BusDBOpenHelper.KEY_BUS_ID, text.toString());
+            else if (editText.getId() == R.id.licenseId && text.length() >= 3)
+                this.query(BusDBOpenHelper.KEY_LICENSE_ID, text.toString());
             else if (editText.getId() == R.id.lineId)
-                this.query(BusDBOpenHelper.KEY_LINE_ID, editText.getText().toString());
+                this.query(BusDBOpenHelper.KEY_LINE_ID, text.toString());
         }
+    }
+
+    private KeyType getKeyType(View key) {
+        KeyType type = KeyType.kOther;
+
+        if (Arrays.asList(R.id.key0, R.id.key1, R.id.key2, R.id.key3, R.id.key4,
+                R.id.key5, R.id.key6, R.id.key7, R.id.key8, R.id.key9).contains(key.getId()))
+            type = KeyType.kDigit;
+        else if (Arrays.asList(R.id.keyA, R.id.keyB, R.id.keyC, R.id.keyD, R.id.keyE,
+                R.id.keyF, R.id.keyG, R.id.keyH, R.id.keyJ, R.id.keyK, R.id.keyL, R.id.keyM,
+                R.id.keyN, R.id.keyP, R.id.keyQ, R.id.keyR, R.id.keyS, R.id.keyT, R.id.keyU,
+                R.id.keyV, R.id.keyW, R.id.keyX, R.id.keyY, R.id.keyZ).contains(key.getId()))
+            type = KeyType.kAlphabet;
+        else if (Arrays.asList(R.id.keyMRU1, R.id.keyMRU2, R.id.keyMRU3, R.id.keyMRU4).
+                contains(key.getId()))
+            type = KeyType.kShortcut;
+
+        return type;
     }
 
     private void query(String field, String value) {
@@ -108,42 +125,41 @@ public class MainActivity extends AppCompatActivity {
         this.onKeyClicked(key, false);
     }
 
-    private boolean onBusIdInput(EditText editText, CharSequence text,
+    private boolean onBusIdInput(Editable text, CharSequence keyText,
                                  KeyType type, boolean longClick) {
         // Suzhou buses have only numerical ids.
         if (type != KeyType.kDigit)
             return true;
-        String id = editText.getText().toString();
+        String id = text.toString();
         if (longClick && !id.contains("-")) {
-            editText.getText().insert(0, text + "-");
+            text.insert(0, keyText + "-");
             return true;
         } else if (id.length() >= 6 || (!id.contains("-") && id.length() >= 4))
             return true;
         return false;
     }
 
-    private boolean onLicenseIdInput(EditText editText, CharSequence text,
+    private boolean onLicenseIdInput(Editable text, CharSequence keyText,
                                      KeyType type, boolean longClick) {
-        if (editText.getText().length() >= 5)
+        if (text.length() >= 5)
             return true;
         return false;
     }
 
-    private boolean onLineIdInput(EditText editText, CharSequence text,
+    private boolean onLineIdInput(Editable text, CharSequence keyText,
                                   KeyType type, boolean longClick) {
         return false;
     }
 
     public void onUpdateClicked(View v) {
         ContentValues values = new ContentValues();
-        String busId = ((EditText)findViewById(R.id.busId)).getText().toString();
-        String licenseId = ((EditText)findViewById(R.id.licenseId)).getText().toString();
+        String busId = this.busId.getText().toString();
+        String licenseId = this.licenseId.getText().toString();
         if (busId.length() == 0 && licenseId.length() == 0)
             return;
         values.put(BusDBOpenHelper.KEY_BUS_ID, busId);
         values.put(BusDBOpenHelper.KEY_LICENSE_ID, licenseId);
-        values.put(BusDBOpenHelper.KEY_LINE_ID,
-                ((EditText)findViewById(R.id.lineId)).getText().toString());
+        values.put(BusDBOpenHelper.KEY_LINE_ID, this.lineId.getText().toString());
         if (this.db.update(BusDBOpenHelper.BUSES_TABLE_NAME, values, "busId = ? OR licenseId = ?",
                 new String[]{busId, licenseId}) == 0)
             this.db.insert(BusDBOpenHelper.BUSES_TABLE_NAME, null, values);

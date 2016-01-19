@@ -1,24 +1,27 @@
 package com.fangjue.suzhoubusdb;
 
+import android.app.AlertDialog;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.*;
-import android.view.View;
+import android.view.*;
 import android.widget.*;
-
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.io.*;
+import java.text.DateFormat;
+import java.util.*;
 
 public class MainActivity extends AppCompatActivity {
 
     private SQLiteDatabase db;
+    private FileWriter logFile;
     private ListView busList;
     private EditText busId;
     private EditText licenseId;
     private EditText lineId;
+    private File logFileObject;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,6 +50,20 @@ public class MainActivity extends AppCompatActivity {
         lineId = (EditText)findViewById(R.id.lineId);
 
         this.db = new BusDBOpenHelper(this.getApplicationContext(), "Suzhou").getWritableDatabase();
+        this.logFileObject = new File(getFilesDir(), "Suzhou.log");
+        try {
+            this.logFile = new FileWriter(this.logFileObject, true);
+            this.logFile.write(DateFormat.getDateTimeInstance().format(new Date()) + "\n");
+            this.logFile.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.main_menu, menu);
+        return true;
     }
 
     private void onKeyClicked(View key, boolean longClick) {
@@ -187,21 +204,59 @@ public class MainActivity extends AppCompatActivity {
     public void onUpdateClicked(View v) {
         String busId = this.busId.getText().toString();
         String licenseId = this.licenseId.getText().toString();
+        String lineId = this.lineId.getText().toString();
         if (busId.length() == 0 && licenseId.length() == 0)
             return;
 
         ContentValues values = new ContentValues();
         values.put(BusDBOpenHelper.KEY_BUS_ID, busId);
         values.put(BusDBOpenHelper.KEY_LICENSE_ID, licenseId);
-        values.put(BusDBOpenHelper.KEY_LINE_ID, this.lineId.getText().toString());
+        values.put(BusDBOpenHelper.KEY_LINE_ID, lineId);
         if (this.db.update(BusDBOpenHelper.BUSES_TABLE_NAME, values, "busId = ? OR licenseId = ?",
                 new String[]{busId, licenseId}) == 0)
             this.db.insert(BusDBOpenHelper.BUSES_TABLE_NAME, null, values);
+        try {
+            logFile.write(busId + "\t" + licenseId + "\t" + lineId + "\n");
+            this.logFile.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         this.busId.getText().clear();
         this.licenseId.getText().clear();
         this.lineId.getText().clear();
         this.busId.requestFocus();
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.showLogs:
+                this.onShowLogs();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
+    private void onShowLogs() {
+        String contents = "<无法打开日志文件>";
+        Scanner scanner = null;
+        try {
+            scanner = new Scanner(this.logFileObject);
+            contents = scanner.useDelimiter("\\A").next();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (NoSuchElementException e) {
+            contents = "";
+        } finally {
+            if (scanner != null)
+                scanner.close();
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Log")
+                .setMessage(contents)
+                .show();
     }
 
     private enum KeyType {

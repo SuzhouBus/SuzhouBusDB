@@ -164,6 +164,12 @@ public class MainActivity extends AppCompatActivity {
 
     private String formatListItem(String busId, String licenseId, String lineId, String comments) {
         final int MAX_LENGTH = 16;
+        if (busId == null)
+            busId = "";
+        if (licenseId == null)
+            licenseId = "";
+        if (comments == null)
+            comments = "";
         comments = comments.trim();
         if (comments.length() > MAX_LENGTH)
             comments = comments.substring(0, MAX_LENGTH - 3) + "...";

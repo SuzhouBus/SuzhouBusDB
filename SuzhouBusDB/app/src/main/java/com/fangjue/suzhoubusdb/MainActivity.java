@@ -94,11 +94,11 @@ public class MainActivity extends AppCompatActivity {
                 editText.append(keyText);
             boolean hasCompanyId = text.toString().contains("-");
             if (editText == busId && (text.length() >= 3 || text.length() == 2 && !hasCompanyId)) {
-                this.query(BusDBOpenHelper.KEY_BUS_ID, (hasCompanyId ? "" : "-") + text.toString());
+                this.query(BusDBOpenHelper.kBusId, (hasCompanyId ? "" : "-") + text.toString());
             } else if (editText.getId() == R.id.licenseId && text.length() >= 3)
-                this.query(BusDBOpenHelper.KEY_LICENSE_ID, text.toString());
+                this.query(BusDBOpenHelper.kLicenseId, text.toString());
             else if (editText.getId() == R.id.lineId)
-                this.query(BusDBOpenHelper.KEY_LINE_ID, text.toString());
+                this.query(BusDBOpenHelper.kLineId, text.toString());
         }
     }
 
@@ -145,17 +145,17 @@ public class MainActivity extends AppCompatActivity {
 
     private void query(String field, String value) {
         String where = null;
-        if (field.equals(BusDBOpenHelper.KEY_BUS_ID))
+        if (field.equals(BusDBOpenHelper.kBusId))
             where = field + " LIKE '%' || ? || '%'";
-        else if (field.equals(BusDBOpenHelper.KEY_LICENSE_ID))
+        else if (field.equals(BusDBOpenHelper.kLicenseId))
             where = field + " LIKE ? || '%'";
-        else if (field.equals(BusDBOpenHelper.KEY_LINE_ID))
+        else if (field.equals(BusDBOpenHelper.kLineId))
             where = field + " = ?";
-        Cursor cursor = this.db.query(BusDBOpenHelper.BUSES_TABLE_NAME,
-                new String[]{BusDBOpenHelper.KEY_BUS_ID, BusDBOpenHelper.KEY_LICENSE_ID,
-                        BusDBOpenHelper.KEY_LINE_ID, BusDBOpenHelper.KEY_COMMENTS},
+        Cursor cursor = this.db.query(BusDBOpenHelper.kTableBuses,
+                new String[]{BusDBOpenHelper.kBusId, BusDBOpenHelper.kLicenseId,
+                        BusDBOpenHelper.kLineId, BusDBOpenHelper.kComments},
                 where, new String[]{value}, null, null, field);
-        android.util.Log.i("info", field + (field.equals(BusDBOpenHelper.KEY_LINE_ID) ? " = ?" : " LIKE '%' + ? + '%'"));
+        android.util.Log.i("info", field + (field.equals(BusDBOpenHelper.kLineId) ? " = ?" : " LIKE '%' + ? + '%'"));
         ArrayList<String> buses = new ArrayList<>();
         while (buses.size() < 100 && cursor.moveToNext())
             buses.add(formatListItem(cursor.getString(0), cursor.getString(1),
@@ -231,19 +231,39 @@ public class MainActivity extends AppCompatActivity {
         String busId = this.busId.getText().toString();
         String licenseId = this.licenseId.getText().toString();
         String lineId = this.lineId.getText().toString();
+
         if (busId.length() == 0 && licenseId.length() == 0)
             return;
         // Reject incomplete input.
-        // TODO: The company part of busId can be autocompleted if lineId is available.
-        if (busId.length() != 0 && busId.length() != 6)
-            return;
+        if (busId.length() != 0 && busId.length() != 6) {
+            // Company id cannot be determined unless lineId is provided and busId is complete.
+            if (lineId.length() == 0 || busId.length() != 4)
+                return;
+
+            Cursor cursor = this.db.query(BusDBOpenHelper.kTableLines,
+                    new String[]{BusDBOpenHelper.kCompanyId},
+                    BusDBOpenHelper.kLineId + " = ?", new String[]{lineId}, null, null, null);
+            if (!cursor.moveToNext()) {
+                cursor.close();
+                return;
+            }
+            String companyId = cursor.getString(0);
+            // Do not autocomplete company id when there is conflict.
+            // TODO: Show conflict resolving dialog or some better UI.
+            if (cursor.moveToNext()) {
+                cursor.close();
+                return;
+            }
+            cursor.close();
+            busId = companyId + "-" + busId;
+        }
         if (licenseId.length() != 0 && licenseId.length() != 5)
             return;
 
         ContentValues values = new ContentValues();
-        values.put(BusDBOpenHelper.KEY_BUS_ID, busId);
-        values.put(BusDBOpenHelper.KEY_LICENSE_ID, licenseId);
-        values.put(BusDBOpenHelper.KEY_LINE_ID, lineId);
+        values.put(BusDBOpenHelper.kBusId, busId);
+        values.put(BusDBOpenHelper.kLicenseId, licenseId);
+        values.put(BusDBOpenHelper.kLineId, lineId);
         String where = "busId = ? OR licenseId = ?";
         String[] args = {busId, licenseId};
         if (busId.length() == 0) {
@@ -253,8 +273,8 @@ public class MainActivity extends AppCompatActivity {
             where = "busId = ?";
             args = new String[]{busId};
         }
-        if (this.db.update(BusDBOpenHelper.BUSES_TABLE_NAME, values, where, args) == 0)
-            this.db.insert(BusDBOpenHelper.BUSES_TABLE_NAME, null, values);
+        if (this.db.update(BusDBOpenHelper.kTableBuses, values, where, args) == 0)
+            this.db.insert(BusDBOpenHelper.kTableBuses, null, values);
         try {
             logFile.write(busId + "\t" + licenseId + "\t" + lineId + "\n");
             this.logFile.flush();

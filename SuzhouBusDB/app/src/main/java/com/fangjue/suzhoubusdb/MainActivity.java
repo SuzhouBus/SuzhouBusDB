@@ -28,9 +28,14 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        this.busList = (ListView)findViewById(R.id.busList);
+        this.busId = (EditText)findViewById(R.id.busId);
+        this.licenseId = (EditText)findViewById(R.id.licenseId);
+        this.lineId = (EditText)findViewById(R.id.lineId);
+
         // Disable soft keyboard for all fields in favor of fine tuned keyboard in our UI.
-        for (int id:new int[]{R.id.busId, R.id.licenseId, R.id.lineId})
-            ((EditText)findViewById(id)).setInputType(InputType.TYPE_NULL);
+        for (EditText editText:new EditText[]{this.busId, this.licenseId, this.lineId})
+            editText.setInputType(InputType.TYPE_NULL);
 
         for (int id:new int[]{R.id.key0, R.id.key1, R.id.key2, R.id.key3, R.id.key4,
                 R.id.key5, R.id.key6, R.id.key7, R.id.key8, R.id.key9,
@@ -44,10 +49,12 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        busList = (ListView)findViewById(R.id.busList);
-        busId = (EditText)findViewById(R.id.busId);
-        licenseId = (EditText)findViewById(R.id.licenseId);
-        lineId = (EditText)findViewById(R.id.lineId);
+        this.busList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                onBusClicked(busList.getAdapter().getItem(position));
+            }
+        });
 
         this.db = new BusDBOpenHelper(this.getApplicationContext(), "Suzhou").getWritableDatabase();
         this.logFileObject = new File(getFilesDir(), "Suzhou.log");
@@ -60,10 +67,23 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void onBusClicked(Object item) {
+        if (item instanceof Bus) {
+            Bus bus = (Bus)item;
+            this.busId.setText(bus.getBusId());
+            this.licenseId.setText(bus.getLicenseId());
+            this.lineId.setText(bus.getLineId());
+        }
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main_menu, menu);
         return true;
+    }
+
+    public void keyClicked(View key) {
+        this.onKeyClicked(key, false);
     }
 
     private void onKeyClicked(View key, boolean longClick) {
@@ -156,30 +176,12 @@ public class MainActivity extends AppCompatActivity {
                         BusDBOpenHelper.kLineId, BusDBOpenHelper.kComments},
                 where, new String[]{value}, null, null, field);
         android.util.Log.i("info", field + (field.equals(BusDBOpenHelper.kLineId) ? " = ?" : " LIKE '%' + ? + '%'"));
-        ArrayList<String> buses = new ArrayList<>();
+        ArrayList<Bus> buses = new ArrayList<>();
         while (buses.size() < 100 && cursor.moveToNext())
-            buses.add(formatListItem(cursor.getString(0), cursor.getString(1),
+            buses.add(new Bus(cursor.getString(0), cursor.getString(1),
                     cursor.getString(2), cursor.getString(3)));
         cursor.close();
         busList.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, buses));
-    }
-
-    private String formatListItem(String busId, String licenseId, String lineId, String comments) {
-        final int MAX_LENGTH = 16;
-        if (busId == null)
-            busId = "";
-        if (licenseId == null)
-            licenseId = "";
-        if (comments == null)
-            comments = "";
-        comments = comments.trim();
-        if (comments.length() > MAX_LENGTH)
-            comments = comments.substring(0, MAX_LENGTH - 3) + "...";
-        return busId + " " + licenseId + " " + lineId +  "   " + comments;
-    }
-
-    public void keyClicked(View key) {
-        this.onKeyClicked(key, false);
     }
 
     private boolean onBusIdInput(Editable text, CharSequence keyText,
@@ -276,7 +278,7 @@ public class MainActivity extends AppCompatActivity {
         if (this.db.update(BusDBOpenHelper.kTableBuses, values, where, args) == 0)
             this.db.insert(BusDBOpenHelper.kTableBuses, null, values);
         busList.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1,
-                Arrays.asList(new String[]{this.formatListItem(busId, licenseId, lineId, "*")})));
+                Arrays.asList(new Bus[]{new Bus(busId, licenseId, lineId, "*")})));
         try {
             logFile.write(busId + "\t" + licenseId + "\t" + lineId + "\n");
             this.logFile.flush();

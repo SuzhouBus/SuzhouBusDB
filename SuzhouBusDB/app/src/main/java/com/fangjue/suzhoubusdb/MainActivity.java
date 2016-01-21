@@ -73,6 +73,13 @@ public class MainActivity extends AppCompatActivity {
             this.busId.setText(bus.getBusId());
             this.licenseId.setText(bus.getLicenseId());
             this.lineId.setText(bus.getLineId());
+
+            if (bus.getBusId().length() == 0)
+                this.busId.requestFocus();
+            else if (bus.getLicenseId().length() == 0)
+                this.licenseId.requestFocus();
+            else if (bus.getLineId().length() == 0)
+                this.lineId.requestFocus();
         }
     }
 

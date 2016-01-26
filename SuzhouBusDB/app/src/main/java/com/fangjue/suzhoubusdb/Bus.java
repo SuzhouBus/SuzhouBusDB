@@ -38,4 +38,9 @@ public class Bus {
     public String getLineId() {
         return lineId;
     }
+
+    public boolean isComplete() {
+        return this.getBusId().length() != 0 && this.getLicenseId().length() != 0 &&
+                this.getLineId().length() != 0;
+    }
 }

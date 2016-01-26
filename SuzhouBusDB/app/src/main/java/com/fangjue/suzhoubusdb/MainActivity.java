@@ -181,13 +181,21 @@ public class MainActivity extends AppCompatActivity {
         Cursor cursor = this.db.query(BusDBOpenHelper.kTableBuses,
                 new String[]{BusDBOpenHelper.kBusId, BusDBOpenHelper.kLicenseId,
                         BusDBOpenHelper.kLineId, BusDBOpenHelper.kComments},
-                where, new String[]{value}, null, null, field);
+                where, new String[]{value}, null, null,
+                field.equals(BusDBOpenHelper.kLineId) ? BusDBOpenHelper.kBusId : field);
         android.util.Log.i("info", field + (field.equals(BusDBOpenHelper.kLineId) ? " = ?" : " LIKE '%' + ? + '%'"));
         ArrayList<Bus> buses = new ArrayList<>();
-        while (buses.size() < 100 && cursor.moveToNext())
-            buses.add(new Bus(cursor.getString(0), cursor.getString(1),
-                    cursor.getString(2), cursor.getString(3)));
+        ArrayList<Bus> incompleteBuses = new ArrayList<>();
+        while (buses.size() + incompleteBuses.size() < 100 && cursor.moveToNext()) {
+            Bus bus = new Bus(cursor.getString(0), cursor.getString(1),
+                    cursor.getString(2), cursor.getString(3));
+            if (bus.isComplete())
+                buses.add(bus);
+            else
+                incompleteBuses.add(bus);
+        }
         cursor.close();
+        buses.addAll(0, incompleteBuses);
         busList.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, buses));
     }
 

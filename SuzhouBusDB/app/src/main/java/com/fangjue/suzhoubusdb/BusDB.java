@@ -1,10 +1,13 @@
 package com.fangjue.suzhoubusdb;
 
+import java.util.ArrayList;
+import java.util.List;
 import android.content.Context;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
-public class BusDBOpenHelper extends SQLiteOpenHelper {
+public class BusDB extends SQLiteOpenHelper {
     private static final int DATABASE_VERSION = 3;
     private static final String DATABASE_NAME_PREFIX = "BUSDB_";
     public static final String kTableBuses = "buses";
@@ -69,15 +72,15 @@ public class BusDBOpenHelper extends SQLiteOpenHelper {
             kComments + " TEXT, " +
             "FOREIGN KEY(" + kRidingId + ") REFERENCES " + kTableRidings + "(" + kRidingId + ") );";
 
-    BusDBOpenHelper(Context context, String city) {
+    BusDB(Context context, String city) {
         super(context, DATABASE_NAME_PREFIX + city, null, DATABASE_VERSION);
     }
 
     @Override
     public void onCreate(SQLiteDatabase db) {
         db.execSQL(BUSES_TABLE_CREATE +
-                   LINES_TABLE_CREATE +
-                   CATEGORIES_TABLE_CREATE
+                        LINES_TABLE_CREATE +
+                        CATEGORIES_TABLE_CREATE
         );
     }
 
@@ -95,5 +98,59 @@ public class BusDBOpenHelper extends SQLiteOpenHelper {
             // Upgrade from Version 2 to 3.
             db.execSQL(CATEGORIES_TABLE_CREATE);
         }
+    }
+
+
+    /**
+     * Returns all buses belonging to the category specified.
+     * @param category Bus category name. Returns all buses if null.
+     * @return A list of buses belonging to the category.
+     */
+    public ArrayList<Bus> getBusesByCategory(String category) {
+        String where = null;
+        List<String> whereArgs = new ArrayList<>();
+
+        if (category != null) {
+            Cursor cursor = this.getReadableDatabase().query(kTableCategories,
+                    new String[]{kBusIdMin, kBusIdMax},
+                    kCategoryName + " = ?", new String[]{category}, null, null, null);
+            while(cursor.moveToNext()) {
+                String clause = "(" + kBusId + " >= ? AND " + kBusId + " <= ?)";
+                if (where == null)
+                    where = clause;
+                else
+                    where += " OR " + clause;
+                whereArgs.add(cursor.getString(0));
+                whereArgs.add(cursor.getString(1));
+            }
+            cursor.close();
+        }
+
+        return this.queryBuses(where,
+                where == null ? null : whereArgs.toArray(new String[whereArgs.size()]), kBusId);
+    }
+
+    public ArrayList<Bus> queryBuses(String where, String[] whereArgs, String orderBy) {
+        return this.queryBuses(where, whereArgs, orderBy, null);
+    }
+
+    public ArrayList<Bus> queryBuses(String where, String[] whereArgs, String orderBy, String limit) {
+        return this.queryBuses(where, whereArgs, null, null, orderBy, limit);
+    }
+
+    public ArrayList<Bus> queryBuses(String where, String[] whereArgs,
+                                     String groupBy, String having, String orderBy, String limit) {
+        ArrayList<Bus> buses = new ArrayList<>();
+
+        Cursor cursor = this.getReadableDatabase().query(BusDB.kTableBuses,
+                new String[]{BusDB.kBusId, BusDB.kLicenseId, BusDB.kLineId, BusDB.kComments},
+                where, whereArgs, groupBy, having, orderBy, limit);
+        while (cursor.moveToNext()) {
+            buses.add(new Bus(cursor.getString(0), cursor.getString(1), cursor.getString(2),
+                    cursor.getString(3)));
+        }
+        cursor.close();
+
+        return buses;
     }
 }

@@ -15,7 +15,7 @@ import java.util.*;
 
 public class MainActivity extends AppCompatActivity {
 
-    private SQLiteDatabase db;
+    private BusDB db;
     private FileWriter logFile;
     private ListView busList;
     private EditText busId;
@@ -56,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        this.db = new BusDBOpenHelper(this.getApplicationContext(), "Suzhou").getWritableDatabase();
+        this.db = new BusDB(this.getApplicationContext(), "Suzhou");
         this.logFileObject = new File(getFilesDir(), "Suzhou.log");
         try {
             this.logFile = new FileWriter(this.logFileObject, true);
@@ -121,11 +121,11 @@ public class MainActivity extends AppCompatActivity {
                 editText.append(keyText);
             boolean hasCompanyId = text.toString().contains("-");
             if (editText == busId && (text.length() >= 3 || text.length() == 2 && !hasCompanyId)) {
-                this.query(BusDBOpenHelper.kBusId, (hasCompanyId ? "" : "-") + text.toString());
+                this.query(BusDB.kBusId, (hasCompanyId ? "" : "-") + text.toString());
             } else if (editText.getId() == R.id.licenseId && text.length() >= 3)
-                this.query(BusDBOpenHelper.kLicenseId, text.toString());
+                this.query(BusDB.kLicenseId, text.toString());
             else if (editText.getId() == R.id.lineId)
-                this.query(BusDBOpenHelper.kLineId, text.toString());
+                this.query(BusDB.kLineId, text.toString());
         }
     }
 
@@ -172,30 +172,21 @@ public class MainActivity extends AppCompatActivity {
 
     private void query(String field, String value) {
         String where = null;
-        if (field.equals(BusDBOpenHelper.kBusId))
+        if (field.equals(BusDB.kBusId))
             where = field + " LIKE '%' || ? || '%'";
-        else if (field.equals(BusDBOpenHelper.kLicenseId))
+        else if (field.equals(BusDB.kLicenseId))
             where = field + " LIKE ? || '%'";
-        else if (field.equals(BusDBOpenHelper.kLineId))
+        else if (field.equals(BusDB.kLineId))
             where = field + " = ?";
-        Cursor cursor = this.db.query(BusDBOpenHelper.kTableBuses,
-                new String[]{BusDBOpenHelper.kBusId, BusDBOpenHelper.kLicenseId,
-                        BusDBOpenHelper.kLineId, BusDBOpenHelper.kComments},
-                where, new String[]{value}, null, null,
-                field.equals(BusDBOpenHelper.kLineId) ? BusDBOpenHelper.kBusId : field);
-        android.util.Log.i("info", field + (field.equals(BusDBOpenHelper.kLineId) ? " = ?" : " LIKE '%' + ? + '%'"));
-        ArrayList<Bus> buses = new ArrayList<>();
-        ArrayList<Bus> incompleteBuses = new ArrayList<>();
-        while (buses.size() + incompleteBuses.size() < 100 && cursor.moveToNext()) {
-            Bus bus = new Bus(cursor.getString(0), cursor.getString(1),
-                    cursor.getString(2), cursor.getString(3));
-            if (bus.isComplete())
-                buses.add(bus);
-            else
-                incompleteBuses.add(bus);
-        }
-        cursor.close();
-        buses.addAll(0, incompleteBuses);
+
+        ArrayList<Bus> buses = this.db.queryBuses(where, new String[]{value},
+                field.equals(BusDB.kLineId) ? BusDB.kBusId : field, "100");
+
+        // Move incomplete buses to the beginning.
+        for (int i = 0; i < buses.size(); ++i)
+            if (!buses.get(i).isComplete())
+                buses.add(0, buses.remove(i));
+
         busList.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, buses));
     }
 
@@ -257,9 +248,9 @@ public class MainActivity extends AppCompatActivity {
             if (lineId.length() == 0 || busId.length() != 4)
                 return;
 
-            Cursor cursor = this.db.query(BusDBOpenHelper.kTableLines,
-                    new String[]{BusDBOpenHelper.kCompanyId},
-                    BusDBOpenHelper.kLineId + " = ?", new String[]{lineId}, null, null, null);
+            Cursor cursor = this.db.getReadableDatabase().query(BusDB.kTableLines,
+                    new String[]{BusDB.kCompanyId},
+                    BusDB.kLineId + " = ?", new String[]{lineId}, null, null, null);
             if (!cursor.moveToNext()) {
                 cursor.close();
                 return;
@@ -278,9 +269,9 @@ public class MainActivity extends AppCompatActivity {
             return;
 
         ContentValues values = new ContentValues();
-        values.put(BusDBOpenHelper.kBusId, busId);
-        values.put(BusDBOpenHelper.kLicenseId, licenseId);
-        values.put(BusDBOpenHelper.kLineId, lineId);
+        values.put(BusDB.kBusId, busId);
+        values.put(BusDB.kLicenseId, licenseId);
+        values.put(BusDB.kLineId, lineId);
         String where = "busId = ? OR licenseId = ?";
         String[] args = {busId, licenseId};
         if (busId.length() == 0) {
@@ -290,8 +281,8 @@ public class MainActivity extends AppCompatActivity {
             where = "busId = ?";
             args = new String[]{busId};
         }
-        if (this.db.update(BusDBOpenHelper.kTableBuses, values, where, args) == 0)
-            this.db.insert(BusDBOpenHelper.kTableBuses, null, values);
+        if (this.db.getWritableDatabase().update(BusDB.kTableBuses, values, where, args) == 0)
+            this.db.getWritableDatabase().insert(BusDB.kTableBuses, null, values);
         busList.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1,
                 Arrays.asList(new Bus[]{new Bus(busId, licenseId, lineId, "*")})));
         try {

@@ -40,6 +40,35 @@ public class BusDBOpenHelper extends SQLiteOpenHelper {
             kBusIdMin + " VARCHAR(16) NOT NULL, " +
             kBusIdMax + " VARCHAR(16) NOT NULL );";
 
+    // Version 4: Add bus riding tables (ridings and details).
+    public static final String kTableRidings = "ridings";
+    public static final String kRidingId = "ridingId";
+    public static final String kDate = "date";
+    public static final String kTags = "tags";
+    private static final String RIDINGS_TABLE_CREATE =
+            "CREATE TABLE " + kTableRidings + " (" +
+            kRidingId + " INTEGER NOT NULL PRIMARY KEY, " +
+            kDate + " DATE NOT NULL, " +
+            kTags + " VARCHAR(1024), " +
+            kComments + " TEXT );";
+
+
+    public static final String kTableRidingRecords = "ridingRecords";
+    public static final String kTime = "time";
+    public static final String kPlace = "place";
+    public static final String kLine = "line";
+    public static final String kAction = "action";
+    private static final String RIDING_RECORDS_TABLE_CREATE =
+            "CREATE TABLE " + kTableRidingRecords + " (" +
+            kTime + " TIMESTAMP NOT NULL, " +
+            kPlace + " VARCHAR(256), " +
+            kLine + " VARCHAR(256), " +
+            kBusId + " VARCHAR(16), " +
+            kRidingId + " INTEGER, " +
+            kAction + " VARCHAR(64), " +
+            kComments + " TEXT, " +
+            "FOREIGN KEY(" + kRidingId + ") REFERENCES " + kTableRidings + "(" + kRidingId + ") );";
+
     BusDBOpenHelper(Context context, String city) {
         super(context, DATABASE_NAME_PREFIX + city, null, DATABASE_VERSION);
     }

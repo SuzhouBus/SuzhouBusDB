@@ -21,7 +21,7 @@ public class BusDB extends SQLiteOpenHelper {
                     kBusId + " VARCHAR(16), " +
                     kLicenseId + " VARCHAR(16), " +
                     kLineId + " VARCHAR(32), " +
-                    kRevision + " INTEGER DEFAULT 0, " +
+                    kRevision + " INTEGER DEFAULT 0, " + // Not used currently.
                     kComments + " TEXT);";
 
     // Version 2: Add lines table.

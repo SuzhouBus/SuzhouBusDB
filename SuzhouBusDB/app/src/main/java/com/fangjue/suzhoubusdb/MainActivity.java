@@ -2,8 +2,8 @@ package com.fangjue.suzhoubusdb;
 
 import android.app.AlertDialog;
 import android.content.ContentValues;
+import android.content.Intent;
 import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.*;
@@ -303,6 +303,9 @@ public class MainActivity extends AppCompatActivity {
         switch (item.getItemId()) {
             case R.id.showLogs:
                 this.onShowLogs();
+                return true;
+            case R.id.openSpreadsheet:
+                this.startActivity(new Intent(this, SpreadsheetActivity.class));
                 return true;
             default:
                 return super.onOptionsItemSelected(item);

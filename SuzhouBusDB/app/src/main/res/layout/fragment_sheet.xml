@@ -4,12 +4,20 @@
     android:layout_height="match_parent"
     tools:context="com.fangjue.suzhoubusdb.SheetFragment">
 
-    <!-- TODO: Update blank fragment layout -->
-
-    <GridView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/sheetGrid"
-        android:layout_gravity="left|top" />
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <LinearLayout
+            android:id="@+id/sheetGridContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="horizontal">
+            <GridView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/sheetGrid"
+                android:layout_gravity="left|top" />
+        </LinearLayout>
+    </HorizontalScrollView>
 
 </FrameLayout>

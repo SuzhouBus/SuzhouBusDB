@@ -172,12 +172,17 @@ public class MainActivity extends AppCompatActivity {
 
     private void query(String field, String value) {
         String where = null;
-        if (field.equals(BusDB.kBusId))
-            where = field + " LIKE '%' || ? || '%'";
-        else if (field.equals(BusDB.kLicenseId))
-            where = field + " LIKE ? || '%'";
-        else if (field.equals(BusDB.kLineId))
-            where = field + " = ?";
+        switch (field) {
+            case BusDB.kBusId:
+                where = field + " LIKE '%' || ? || '%'";
+                break;
+            case BusDB.kLicenseId:
+                where = field + " LIKE ? || '%'";
+                break;
+            case BusDB.kLineId:
+                where = field + " = ?";
+                break;
+        }
 
         ArrayList<Bus> buses = this.db.queryBuses(where, new String[]{value},
                 field.equals(BusDB.kLineId) ? BusDB.kBusId : field, "100");
@@ -202,7 +207,7 @@ public class MainActivity extends AppCompatActivity {
         String id = text.toString();
 
         // Reject if busId is complete.
-        if (id.length() >= 6 || (!id.contains("-") && id.length() >= 4 && !longClick))
+        if (id.length() >= 6 || (!id.contains("-") && id.length() > 4 && !longClick))
             return true;
         // The last digit has already been typed. Move focus to the next field.
         // TODO: Restore the expression after company id autocomplete is implemented.
@@ -213,6 +218,10 @@ public class MainActivity extends AppCompatActivity {
         if (longClick && !id.contains("-")) {
             text.insert(0, keyText + "-");
             return true;
+        } else if (!id.contains("-") && id.length() == 4 && !longClick) {
+            // Supports directly typing digits without '-'.
+            text.insert(1, "-");
+            return false; // Let the typed character be appended.
         }
         return false;
     }

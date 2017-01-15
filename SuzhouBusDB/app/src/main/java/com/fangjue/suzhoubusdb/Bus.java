@@ -47,7 +47,8 @@ public class Bus {
     }
 
     public boolean isComplete() {
-        return this.getBusId().length() != 0 && this.getLicenseId().length() != 0 &&
-                this.getLineId().length() != 0;
+        return this.getBusId() != null && this.getBusId().length() != 0 &&
+                this.getLicenseId() != null && this.getLicenseId().length() != 0 &&
+                this.getLineId() != null && this.getLineId().length() != 0;
     }
 }

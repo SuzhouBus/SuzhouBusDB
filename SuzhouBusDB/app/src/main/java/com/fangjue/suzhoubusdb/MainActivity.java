@@ -212,19 +212,24 @@ public class MainActivity extends AppCompatActivity {
         // Reject if busId is complete.
         if (id.length() >= 6 || (!id.contains("-") && id.length() > 4 && !longClick))
             return true;
+
+        boolean lastSimpleDigit = !id.contains("-") && id.length() == 4 && !longClick;
+
         // The last digit has already been typed. Move focus to the next field.
         // TODO: Restore the expression after company id autocomplete is implemented.
-        if (id.length() == 5 || (id.length() == 4 && longClick)
+        if (id.length() == 5 || (id.length() == 4 && longClick) || lastSimpleDigit
                 /*|| (!id.contains("-") && id.length() == 3)*/)
             this.licenseId.requestFocus();
         // Long pressing a number types the company prefix.
         if (longClick && !id.contains("-")) {
             text.insert(0, keyText + "-");
             return true;
-        } else if (!id.contains("-") && id.length() == 4 && !longClick) {
-            // Supports directly typing digits without '-'.
-            text.insert(1, "-");
-            return false; // Let the typed character be appended.
+        } else {
+            if (lastSimpleDigit) {
+                // Supports directly typing digits without '-'.
+                text.insert(1, "-");
+                return false; // Let the typed character be appended.
+            }
         }
         return false;
     }

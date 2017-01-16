@@ -70,7 +70,10 @@ public class MainActivity extends AppCompatActivity {
     private void onBusClicked(Object item) {
         if (item instanceof Bus) {
             Bus bus = (Bus)item;
-            this.busId.setText(bus.getBusId());
+
+            if (!(this.busId.getText().length() != 0 &&
+                    (bus.getBusId() == null || bus.getBusId().length() == 0)))
+                this.busId.setText(bus.getBusId());
             this.licenseId.setText(bus.getLicenseId());
             this.lineId.setText(bus.getLineId());
 

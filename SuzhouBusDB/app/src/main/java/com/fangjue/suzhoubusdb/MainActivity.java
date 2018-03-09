@@ -14,8 +14,7 @@ import java.text.DateFormat;
 import java.util.*;
 
 public class MainActivity extends AppCompatActivity {
-
-    private BusDB db;
+    BusDB db;
     private FileWriter logFile;
     private ListView busList;
     private EditText busId;
@@ -56,7 +55,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        this.db = new BusDB(this.getApplicationContext(), "Suzhou");
+        this.db = BusDB.getInstance(this.getApplicationContext());
         this.logFileObject = new File(getFilesDir(), "Suzhou.log");
         try {
             this.logFile = new FileWriter(this.logFileObject, true);

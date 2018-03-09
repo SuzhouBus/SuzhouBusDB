@@ -1,13 +1,18 @@
 package com.fangjue.suzhoubusdb;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
 public class BusDB extends SQLiteOpenHelper {
+    private static BusDB instance;
     private static final int DATABASE_CURRENT_VERSION = 4;
     private static final String DATABASE_NAME_PREFIX = "BUSDB_";
 
@@ -187,5 +192,68 @@ public class BusDB extends SQLiteOpenHelper {
         cursor.close();
 
         return buses;
+    }
+
+    public List<RealtimeLine> queryRealtimeLines(String query, int limit) {
+        ArrayList<RealtimeLine> results = new ArrayList<>();
+        HashSet<String> relatedLinesGuidSet = new HashSet<>();
+        HashMap<String, HashMap<String, ArrayList<RealtimeRelatedLine>>> relatedLines = new HashMap<>();
+        String where = BusDB.kLineName + " LIKE '%' || ? || '%'";
+
+        Cursor cursor = this.getReadableDatabase().query(BusDB.kTableRealtimeLineRelations,
+                new String[]{BusDB.kLineName, BusDB.kLineDirection, BusDB.kLineGuid, BusDB.kLineRelation},
+                where,
+                new String[]{query},
+                null, null, null);
+        while(cursor.moveToNext()) {
+            String name = cursor.getString(0);
+            String direction = cursor.getString(1);
+            String guid = cursor.getString(3);
+            relatedLinesGuidSet.add(guid);
+            if (!relatedLines.containsKey(name)) {
+                relatedLines.put(name, new HashMap<String, ArrayList<RealtimeRelatedLine>>());
+            }
+            if (!relatedLines.get(name).containsKey(direction)) {
+                relatedLines.get(name).put(direction, new ArrayList<RealtimeRelatedLine>());
+            }
+            relatedLines.get(name).get(direction).add(
+                    new RealtimeRelatedLine(name, direction, guid, cursor.getString(3)));
+        }
+        cursor.close();
+
+        cursor = this.getReadableDatabase().query(BusDB.kTableRealtimeLines,
+                new String[]{BusDB.kLineGuid, BusDB.kLineName, BusDB.kLineDirection, BusDB.kLineStatus},
+                where +  "AND STATUS = 0",
+                new String[]{query},
+                null, null, null, limit > 0 ? Integer.toString(limit) : null);
+        while (cursor.moveToNext()) {
+            String guid = cursor.getString(0);
+            if (!relatedLinesGuidSet.contains(guid)) {
+                results.add(new RealtimeLine(guid, cursor.getString(1), cursor.getString(2), cursor.getInt(3)));
+            }
+        }
+        cursor.close();
+
+        for(Map.Entry<String, HashMap<String, ArrayList<RealtimeRelatedLine>>> lineEntry: relatedLines.entrySet()) {
+            String name = lineEntry.getKey();
+            HashMap<String, ArrayList<RealtimeRelatedLine>> directions = lineEntry.getValue();
+            for(Map.Entry<String, ArrayList<RealtimeRelatedLine>> directionEntry: directions.entrySet()) {
+                String direction = directionEntry.getKey();
+                ArrayList<RealtimeRelatedLine> lines = directionEntry.getValue();
+                results.add(0, new RealtimeLine(null, name, direction, 0, lines));
+            }
+        }
+
+        if (results.size() > limit)
+            return results.subList(0, limit);
+
+        return results;
+    }
+
+    public static BusDB getInstance(Context context) {
+        if (BusDB.instance == null) {
+            BusDB.instance = new BusDB(context, "Suzhou");
+        }
+        return BusDB.instance;
     }
 }

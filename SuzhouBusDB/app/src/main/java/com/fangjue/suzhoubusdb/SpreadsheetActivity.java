@@ -17,7 +17,7 @@ public class SpreadsheetActivity extends AppCompatActivity {
 
         this.busPager = (ViewPager)findViewById(R.id.busPager);
         this.busPager.setAdapter(new CategoryPagerAdapter(getSupportFragmentManager(),
-                new BusDB(this.getApplicationContext(), "Suzhou")));
+                BusDB.getInstance(this.getApplicationContext())));
     }
 }
 

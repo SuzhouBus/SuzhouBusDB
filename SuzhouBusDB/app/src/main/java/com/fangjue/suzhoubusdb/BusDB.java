@@ -8,8 +8,10 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
 public class BusDB extends SQLiteOpenHelper {
-    private static final int DATABASE_VERSION = 3;
+    private static final int DATABASE_CURRENT_VERSION = 4;
     private static final String DATABASE_NAME_PREFIX = "BUSDB_";
+
+    // Version 1: Only `buses` table.
     public static final String kTableBuses = "buses";
     public static final String kBusId = "busId";
     public static final String kLicenseId = "licenseId";
@@ -24,7 +26,7 @@ public class BusDB extends SQLiteOpenHelper {
                     kRevision + " INTEGER DEFAULT 0, " + // Not used currently.
                     kComments + " TEXT);";
 
-    // Version 2: Add lines table.
+    // Version 2: Add `lines` table.
     public static final String kTableLines = "lines";
     public static final String kCompanyId = "companyId";
     private static final String LINES_TABLE_CREATE =
@@ -32,7 +34,7 @@ public class BusDB extends SQLiteOpenHelper {
             kLineId + " VARCHAR(32) NOT NULL, " +
             kCompanyId + " VARCHAR(1) NOT NULL );";
 
-    // Version 3: Add bus categories table.
+    // Version 3: Add bus `categories` table.
     public static final String kTableCategories = "categories";
     public static final String kCategoryName = "name";
     public static final String kBusIdMin = "busIdMin";
@@ -43,7 +45,7 @@ public class BusDB extends SQLiteOpenHelper {
             kBusIdMin + " VARCHAR(16) NOT NULL, " +
             kBusIdMax + " VARCHAR(16) NOT NULL );";
 
-    // Version 4: Add bus riding tables (ridings and details).
+    // Version 4: Add bus riding tables (`ridings` and `ridingRecords`).
     public static final String kTableRidings = "ridings";
     public static final String kRidingId = "ridingId";
     public static final String kDate = "date";
@@ -54,7 +56,6 @@ public class BusDB extends SQLiteOpenHelper {
             kDate + " DATE NOT NULL, " +
             kTags + " VARCHAR(1024), " +
             kComments + " TEXT );";
-
 
     public static final String kTableRidingRecords = "ridingRecords";
     public static final String kTime = "time";
@@ -72,8 +73,31 @@ public class BusDB extends SQLiteOpenHelper {
             kComments + " TEXT, " +
             "FOREIGN KEY(" + kRidingId + ") REFERENCES " + kTableRidings + "(" + kRidingId + ") );";
 
+    // Version 4: Add realtime tables (`realtimeLines` & `realtimeLineRelations`)
+    public static final String kTableRealtimeLines = "realtimeLines";
+    public static final String kLineName = "lineName";
+    public static final String kLineDirection = "lineDirection";
+    public static final String kLineGuid = "lineGuid";
+    public static final String kLineStatus = "lineStatus";
+    private static final String REALTIME_LINES_TABLE_CREATE =
+            "CREATE TABLE " + kTableRealtimeLines + " ("  +
+            kLineName + " VARCHAR(256), " +
+            kLineDirection + " VARCHAR(900), " +
+            kLineGuid + " VARCHAR(40), " +
+            kLineStatus + " INTEGER DEFAULT 0, " +
+            "PRIMARY KEY(" + kLineGuid + ") );";
+
+    public static final String kTableRealtimeLineRelations = "realtimeLineRelations";
+    public static final String kLineRelation = "relation";
+    private static final String REALTIME_LINES_RELATIONS_TABLE_CREATE =
+            "CREATE TABLE " + kTableRealtimeLineRelations + " (" +
+            kLineGuid + " VARCHAR(40), " +
+            kLineRelation + " VARCHAR(256), " +
+            kLineName + " VARCHAR(256), " +
+            kLineDirection + " VARCHAR(900), " +
+            ");";
     BusDB(Context context, String city) {
-        super(context, DATABASE_NAME_PREFIX + city, null, DATABASE_VERSION);
+        super(context, DATABASE_NAME_PREFIX + city, null, DATABASE_CURRENT_VERSION);
     }
 
     @Override
@@ -86,7 +110,7 @@ public class BusDB extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        if (newVersion > 3)
+        if (newVersion > DATABASE_CURRENT_VERSION)
             throw new UnsupportedOperationException();
 
         if (oldVersion <= 1) {
@@ -97,6 +121,17 @@ public class BusDB extends SQLiteOpenHelper {
         if (oldVersion <= 2) {
             // Upgrade from Version 2 to 3.
             db.execSQL(CATEGORIES_TABLE_CREATE);
+        }
+
+        if (oldVersion <= 3) {
+            // Upgrade from Version 3 to 4.
+            db.execSQL(RIDING_RECORDS_TABLE_CREATE);
+        }
+
+        if (oldVersion <= 4) {
+            // Upgrade from Version 4 to 5.
+            db.execSQL(REALTIME_LINES_TABLE_CREATE);
+            db.execSQL(REALTIME_LINES_RELATIONS_TABLE_CREATE);
         }
     }
 

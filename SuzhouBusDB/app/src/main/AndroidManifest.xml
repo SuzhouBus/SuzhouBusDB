@@ -19,7 +19,8 @@
             </intent-filter>
         </activity>
         <activity android:name=".SpreadsheetActivity" />
-        <activity android:name=".RidingActivity"></activity>
+        <activity android:name=".RidingActivity" />
+        <activity android:name=".RealtimeActivity" android:label="实时公交" />
     </application>
 
 </manifest>

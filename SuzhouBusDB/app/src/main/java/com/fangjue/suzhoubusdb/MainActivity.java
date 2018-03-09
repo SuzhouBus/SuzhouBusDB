@@ -318,6 +318,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
+            case R.id.realtime:
+                this.startActivity(new Intent(this, RealtimeActivity.class));
+                return true;
             case R.id.showLogs:
                 this.onShowLogs();
                 return true;

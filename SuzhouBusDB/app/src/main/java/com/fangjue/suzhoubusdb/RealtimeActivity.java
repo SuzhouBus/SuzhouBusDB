@@ -46,23 +46,7 @@ public class RealtimeActivity extends AppCompatActivity {
         this.detailsView.setOnItemClickListener(new GridView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int position, long arg3) {
-                if (currentLines != null && detailsView.getNumColumns() == 2) {
-                    int row = position / detailsView.getNumColumns();
-                    if (row < currentLines.size()) {
-                        final String guid = currentLines.get(row).getGuid();
-                        new AsyncTask<Void, Void, ArrayList<RealtimeEntry>>() {
-                            @Override
-                            protected ArrayList<RealtimeEntry> doInBackground(Void... voids) {
-                                return RequestSender.getInstance(getApplicationContext()).queryLine(guid);
-                            }
-
-                            @Override
-                            protected void onPostExecute(ArrayList<RealtimeEntry> results) {
-                                updateDetailsWithRealtimeEntries(results);
-                            }
-                        }.execute();
-                    }
-                }
+                onDetailsItemClick(position);
             }
         });
 
@@ -98,10 +82,13 @@ public class RealtimeActivity extends AppCompatActivity {
                 protected ArrayList<RealtimeLine> doInBackground(String... strings) {
                     return RequestSender.getInstance(getApplicationContext()).searchLine(strings[0]);
                 }
+
                 @Override
                 protected void onPostExecute(ArrayList<RealtimeLine> results) {
                     activeTask = null;
-                    onSearchCompleted(results);
+                    if (results != null) {
+                        updateDetailsWithLines(results, 0);
+                    }
                 }
             };
             this.activeTask = task;
@@ -109,9 +96,26 @@ public class RealtimeActivity extends AppCompatActivity {
         }
     }
 
-    public void onSearchCompleted(ArrayList<RealtimeLine> results) {
-        if (results != null) {
-            this.updateDetailsWithLines(results, 0);
+    private void onDetailsItemClick(int position) {
+        if (currentLines != null && detailsView.getNumColumns() == 2) {
+            int row = position / detailsView.getNumColumns();
+            if (row < currentLines.size()) {
+                RealtimeLine line = currentLines.get(row);
+                final String guid = line.getGuid();
+                final String lineDescription = line.getName() + "(" + line.getDirection() + ")";
+                new AsyncTask<Void, Void, ArrayList<RealtimeEntry>>() {
+                    @Override
+                    protected ArrayList<RealtimeEntry> doInBackground(Void... voids) {
+                        return RequestSender.getInstance(getApplicationContext()).queryLine(guid);
+                    }
+
+                    @Override
+                    protected void onPostExecute(ArrayList<RealtimeEntry> results) {
+                        updateDetailsWithRealtimeEntries(results);
+                        searchBox.setText(lineDescription);
+                    }
+                }.execute();
+            }
         }
     }
 

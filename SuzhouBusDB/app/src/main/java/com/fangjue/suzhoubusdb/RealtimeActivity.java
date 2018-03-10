@@ -11,6 +11,7 @@ import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.GridView;
@@ -31,10 +32,10 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -45,6 +46,9 @@ public class RealtimeActivity extends AppCompatActivity {
     private BusDB db;
     private SearchLineTask activeTask = null;
     private int currentSearchLength = 0;
+    private List<RealtimeLine> currentLines = null;
+    private List<RealtimeEntry> currentEntries = null;
+    private HashMap<String, String> busIdMap = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,13 +64,47 @@ public class RealtimeActivity extends AppCompatActivity {
                 return false;
             }
         });
+        this.detailsView.setOnItemClickListener(new GridView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int position, long arg3) {
+                if (currentLines != null && detailsView.getNumColumns() == 2) {
+                    int row = position / detailsView.getNumColumns();
+                    if (row < currentLines.size()) {
+                        final String guid = currentLines.get(row).getGuid();
+                        new AsyncTask<Void, Void, ArrayList<RealtimeEntry>>() {
+                            @Override
+                            protected ArrayList<RealtimeEntry> doInBackground(Void... voids) {
+                                return RequestSender.getInstance(getApplicationContext()).queryLine(guid);
+                            }
+
+                            @Override
+                            protected void onPostExecute(ArrayList<RealtimeEntry> results) {
+                                updateDetailsWithRealtimeEntries(results);
+                            }
+                        }.execute();
+                    }
+                }
+            }
+        });
+
+        new AsyncTask<Void, Void, Void>() {
+            @Override
+            protected Void doInBackground(Void... voids) {
+                List<Bus> buses = BusDB.getInstance(getApplicationContext()).queryCompleteBuses();
+                busIdMap = new HashMap<>(buses.size());
+                for(Bus bus: buses) {
+                    busIdMap.put(bus.getLicenseId(), bus.getBusId());
+                }
+                return null;
+            }
+        }.execute();
 
         this.db = BusDB.getInstance(this.getApplicationContext());
     }
 
     private void onSearchBoxInput() {
         String query = this.searchBox.getText().toString();
-        if (query.length() > this.currentSearchLength) {
+        if (this.currentEntries == null && query.length() > this.currentSearchLength) {
             this.updateDetailsViewByQuery(query, 10, 0);
         }
         this.currentSearchLength = query.length();
@@ -84,16 +122,18 @@ public class RealtimeActivity extends AppCompatActivity {
     public void onSearchCompleted(ArrayList<RealtimeLine> results) {
         if (results != null) {
             this.activeTask = null;
-            this.updateDetailsFromList(results, 0);
+            this.updateDetailsWithLines(results, 0);
         }
     }
 
     private void updateDetailsViewByQuery(String query, int limit, int color) {
         List<RealtimeLine> lines = db.queryRealtimeLines(query, limit);
-        this.updateDetailsFromList(lines, color);
+        this.updateDetailsWithLines(lines, color);
     }
 
-    private void updateDetailsFromList(List<RealtimeLine> lines, final int color) {
+    private void updateDetailsWithLines(List<RealtimeLine> lines, final int color) {
+        this.currentLines = lines;
+        this.currentEntries = null;
         ArrayList<String> values = new ArrayList<>();
         for (RealtimeLine line : lines) {
             values.add(line.getName());
@@ -111,6 +151,26 @@ public class RealtimeActivity extends AppCompatActivity {
                 return view;
             }
         });
+    }
+
+    private void updateDetailsWithRealtimeEntries(ArrayList<RealtimeEntry> entries) {
+        this.currentEntries = entries;
+        ArrayList<String> values = new ArrayList<>();
+        for (RealtimeEntry entry: entries) {
+            values.add(entry.stopName);
+            String licenseId = entry.licenseId;
+            if (licenseId.startsWith("苏E-")) {
+                licenseId = licenseId.substring(3);
+            }
+            String busId = this.busIdMap.get(licenseId);
+            if (busId == null)
+                busId = "";
+            values.add(busId);
+            values.add(licenseId);
+            values.add(entry.time);
+        }
+        this.detailsView.setNumColumns(4);
+        this.detailsView.setAdapter(new ArrayAdapter<String>(this.getBaseContext(), android.R.layout.simple_list_item_1, values));
     }
 }
 
@@ -139,18 +199,15 @@ class RequestSender {
         this.REALTIME_ENTRY_PATTERN = Pattern.compile("<tr><td>(?:<a\\s+[^>]*>)?([^<]*)(?:</a>)?</td><td>([^<]*)</td><td>([^<]*)</td><td>([^<]*)</td></tr>");
     }
 
-    // TODO: Make it private after refactory.
-    public String sendRequest(String fullUrl) {
+    private String sendRequest(String fullUrl) {
         return sendRequest(fullUrl, "GET");
     }
 
-    // TODO: Make it private after refactory.
-    public String sendRequest(String fullUrl, String method) {
+    private String sendRequest(String fullUrl, String method) {
         return sendRequest(fullUrl, method, null);
     }
 
-    // TODO: Make it private after refactory.
-    public String sendRequest(String fullUrl, String method, LinkedHashMap<String, String> arguments) {
+    private String sendRequest(String fullUrl, String method, LinkedHashMap<String, String> arguments) {
         HttpURLConnection connection = null;
         InputStream stream = null;
         Scanner scanner = null;
@@ -316,6 +373,23 @@ class RequestSender {
         }
 
         return null;
+    }
+
+    public ArrayList<RealtimeEntry> queryLine(String guid) {
+        StringBuilder url = new StringBuilder(BASE_URL);
+        url.append("?LineGuid=");
+        url.append(guid);
+        String body = this.sendRequest(url.toString());
+        if (body == null) {
+            return null;
+        }
+
+        Matcher matcher = REALTIME_ENTRY_PATTERN.matcher(body);
+        ArrayList<RealtimeEntry> results = new ArrayList<>();
+        while (matcher.find()) {
+            results.add(new RealtimeEntry(matcher.group(1), matcher.group(2), matcher.group(3), matcher.group(4)));
+        }
+        return results;
     }
 
     private LinkedHashMap<String, String> fetchNewViewState() {

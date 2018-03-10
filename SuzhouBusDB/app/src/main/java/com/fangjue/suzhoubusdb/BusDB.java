@@ -169,6 +169,10 @@ public class BusDB extends SQLiteOpenHelper {
                 where == null ? null : whereArgs.toArray(new String[whereArgs.size()]), kBusId);
     }
 
+    public ArrayList<Bus> queryCompleteBuses() {
+        return this.queryBuses(kBusId + " != '' AND " + kLicenseId + " != ''", null, null);
+    }
+
     public ArrayList<Bus> queryBuses(String where, String[] whereArgs, String orderBy) {
         return this.queryBuses(where, whereArgs, orderBy, null);
     }

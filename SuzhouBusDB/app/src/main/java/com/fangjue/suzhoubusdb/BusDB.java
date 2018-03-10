@@ -99,8 +99,7 @@ public class BusDB extends SQLiteOpenHelper {
             kLineGuid + " VARCHAR(40), " +
             kLineRelation + " VARCHAR(256), " +
             kLineName + " VARCHAR(256), " +
-            kLineDirection + " VARCHAR(900), " +
-            ");";
+            kLineDirection + " VARCHAR(900) );";
     BusDB(Context context, String city) {
         super(context, DATABASE_NAME_PREFIX + city, null, DATABASE_CURRENT_VERSION);
     }
@@ -223,7 +222,7 @@ public class BusDB extends SQLiteOpenHelper {
 
         cursor = this.getReadableDatabase().query(BusDB.kTableRealtimeLines,
                 new String[]{BusDB.kLineGuid, BusDB.kLineName, BusDB.kLineDirection, BusDB.kLineStatus},
-                where +  "AND STATUS = 0",
+                where +  "AND " + BusDB.kLineStatus + " = 0",
                 new String[]{query},
                 null, null, null, limit > 0 ? Integer.toString(limit) : null);
         while (cursor.moveToNext()) {
@@ -250,7 +249,7 @@ public class BusDB extends SQLiteOpenHelper {
         return results;
     }
 
-    public static BusDB getInstance(Context context) {
+    public static synchronized BusDB getInstance(Context context) {
         if (BusDB.instance == null) {
             BusDB.instance = new BusDB(context, "Suzhou");
         }

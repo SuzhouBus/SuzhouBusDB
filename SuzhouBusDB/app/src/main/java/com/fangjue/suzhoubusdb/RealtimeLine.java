@@ -57,15 +57,31 @@ class RealtimeLine {
 }
 
 class RealtimeRelatedLine {
-    private final String name;
-    private final String direction;
-    private final String guid;
-    private final String relation;
+    private String name;
+    private String direction;
+    private String guid;
+    private String relation;
 
     RealtimeRelatedLine(String name, String direction, String guid, String relation) {
         this.name = name;
         this.direction = direction;
         this.guid = guid;
         this.relation = relation;
+    }
+}
+
+class RealtimeEntry {
+    public String stopName;
+    public String stopId;
+    public String busId;
+    public String licenseId;
+    public String time;
+
+    RealtimeEntry(String stopName, String stopId, String licenseId, String time) {
+        this.stopName = stopName;
+        this.stopId = stopId;
+        this.licenseId = licenseId;
+        this.time = time;
+        this.busId = "";
     }
 }
